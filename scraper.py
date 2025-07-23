@@ -166,9 +166,6 @@ class ZendeskScraper:
         # Fix escaped characters
         markdown = re.sub(r'\\([&.])', r'\1', markdown)
 
-        # DON'T run the code block intelligence here - trust html2text for code blocks
-        # The issue was that is_likely_code was removing legitimate code blocks
-
         return markdown
 
     def remove_images(self, markdown_content):
@@ -303,7 +300,7 @@ class ZendeskScraper:
         return '\n'.join(cleaned_lines).strip()
 
     def create_clean_metadata_header(self, article_data):
-        """Create minimal metadata header"""
+        """Create enhanced metadata header with prominent URL"""
         title = article_data['title']
         article_id = article_data['id']
         url = article_data.get('html_url', 'Unknown')
@@ -311,11 +308,35 @@ class ZendeskScraper:
         return f"""# {title}
 
 **Article ID:** {article_id}  
+**Source URL:** {url}
 **Article URL:** {url}
+
+IMPORTANT: When referencing this article, always cite the exact URL above: {url}
 
 ---
 
 """
+
+    def add_url_reminders(self, markdown_content, article_url):
+        """Add URL reminders throughout the content"""
+
+        # Add reminder after main sections
+        sections = markdown_content.split('\n## ')
+        if len(sections) > 1:
+            # Add URL reminder after every other section
+            enhanced_sections = []
+            for i, section in enumerate(sections):
+                enhanced_sections.append(section)
+                # Add reminder after every 2nd section (but not at the very end)
+                if i > 0 and i % 2 == 0 and i < len(sections) - 1:
+                    enhanced_sections.append(f"\n*For more details, see: {article_url}*\n")
+
+            markdown_content = '\n## '.join(enhanced_sections)
+
+        # Add final URL reminder at the end
+        markdown_content += f"\n\n---\n**Full Article URL:** {article_url}\n**Citation Format:** Article URL: {article_url}"
+
+        return markdown_content
 
     def clean_markdown_for_chatbot(self, markdown_content):
         """Master cleaning function that preserves code blocks"""
@@ -329,8 +350,9 @@ class ZendeskScraper:
         return markdown_content
 
     def process_article_to_markdown(self, article_data):
-        """Complete processing pipeline"""
+        """Complete processing pipeline with enhanced URL handling"""
         html_content = article_data['body']
+        article_url = article_data.get('html_url', 'Unknown')
 
         # Step 1: Clean HTML while preserving code blocks
         cleaned_html = self.clean_html_content(html_content)
@@ -344,10 +366,13 @@ class ZendeskScraper:
         # Step 4: Apply chatbot optimizations while preserving code blocks
         cleaned_markdown = self.clean_markdown_for_chatbot(markdown_content)
 
-        # Step 5: Add metadata header
+        # Step 5: Add URL reminders throughout content (NEW)
+        enhanced_markdown = self.add_url_reminders(cleaned_markdown, article_url)
+
+        # Step 6: Add metadata header
         metadata = self.create_clean_metadata_header(article_data)
 
-        return metadata + cleaned_markdown
+        return metadata + enhanced_markdown
 
     def create_slug(self, title):
         """Create filename slug"""
