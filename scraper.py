@@ -6,10 +6,7 @@ import re
 import os
 import html
 import time
-import json
 import logging
-from pathlib import Path
-from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -65,8 +62,32 @@ class ZendeskScraper:
             return None
 
     def clean_html_content(self, html_content):
-        """Clean HTML content by removing unwanted elements and fixing structural issues"""
-        # Remove navigation elements, ads, and unwanted content
+        """Clean HTML content while preserving code blocks"""
+        # Store code blocks temporarily to protect them
+        code_blocks = {}
+        code_counter = 0
+
+        # Extract and store <pre> blocks
+        def store_pre_block(match):
+            nonlocal code_counter
+            placeholder = f"PRESERVED_PRE_BLOCK_{code_counter}"
+            code_blocks[placeholder] = match.group(0)
+            code_counter += 1
+            return placeholder
+
+        # Extract and store <code> blocks
+        def store_code_block(match):
+            nonlocal code_counter
+            placeholder = f"PRESERVED_CODE_BLOCK_{code_counter}"
+            code_blocks[placeholder] = match.group(0)
+            code_counter += 1
+            return placeholder
+
+        # Temporarily replace code blocks with placeholders
+        html_content = re.sub(r'<pre[^>]*>.*?</pre>', store_pre_block, html_content, flags=re.DOTALL | re.IGNORECASE)
+        html_content = re.sub(r'<code[^>]*>.*?</code>', store_code_block, html_content, flags=re.DOTALL | re.IGNORECASE)
+
+        # Remove unwanted elements (nav/ads)
         patterns_to_remove = [
             r'<nav[^>]*>.*?</nav>',
             r'<div[^>]*class="[^"]*ad[^"]*"[^>]*>.*?</div>',
@@ -76,15 +97,14 @@ class ZendeskScraper:
             r'<header[^>]*>.*?</header>'
         ]
 
-        cleaned_html = html_content
         for pattern in patterns_to_remove:
-            cleaned_html = re.sub(pattern, '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+            html_content = re.sub(pattern, '', html_content, flags=re.DOTALL | re.IGNORECASE)
 
-        # Fix problematic list styling that confuses markdown conversion
-        cleaned_html = re.sub(r'\s*style="[^"]*list-style-type:\s*none[^"]*"', '', cleaned_html)
-        cleaned_html = re.sub(r'<li\s+style="[^"]*"([^>]*)>', r'<li\1>', cleaned_html)
+        # Fix list styling issues (but avoid code blocks)
+        html_content = re.sub(r'\s*style="[^"]*list-style-type:\s*none[^"]*"', '', html_content)
+        html_content = re.sub(r'<li\s+style="[^"]*"([^>]*)>', r'<li\1>', html_content)
 
-        # Fix nested list structures that create formatting issues
+        # Fix nested list structures
         patterns_to_fix = [
             r'<ol[^>]*>\s*<li[^>]*>\s*(<ul[^>]*>.*?</ul>)\s*</li>\s*</ol>',
             r'<ul[^>]*>\s*<li[^>]*>\s*(<ul[^>]*>.*?</ul>)\s*</li>\s*</ul>',
@@ -92,122 +112,72 @@ class ZendeskScraper:
             r'<li[^>]*>\s*(<[uo]l[^>]*>.*?</[uo]l>)\s*</li>'
         ]
 
-        # Apply fixes multiple times to handle deeply nested structures
         for _ in range(3):
             for pattern in patterns_to_fix:
-                cleaned_html = re.sub(pattern, r'\1', cleaned_html, flags=re.DOTALL)
+                html_content = re.sub(pattern, r'\1', html_content, flags=re.DOTALL)
 
-        return cleaned_html
-
-    def fix_relative_links(self, html_content, base_url="https://support.optisigns.com"):
-        """Convert relative URLs to absolute URLs"""
-        # Fix relative href attributes (links)
-        html_content = re.sub(r'href="(/[^"]*)"', f'href="{base_url}\\1"', html_content)
-
-        # Fix relative src attributes (images, etc.)
-        html_content = re.sub(r'src="(/[^"]*)"', f'src="{base_url}\\1"', html_content)
+        # Restore code blocks
+        for placeholder, original_code in code_blocks.items():
+            html_content = html_content.replace(placeholder, original_code)
 
         return html_content
 
-    def is_likely_code(self, content):
-        """Determine if content is likely to be actual code vs regular text"""
-        code_indicators = [
-            r'[{}()\[\];]',  # Programming symbols
-            r'^\s*(function|class|def|var|let|const|import|export)',  # Programming keywords
-            r'[=<>!]{2,}',  # Comparison operators
-            r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*[:=]',  # Variable assignments
-            r'^\s*[#//]',  # Comment markers
-            r'<[^>]+>',  # HTML/XML tags
-            r'^\s*\$'  # Shell command indicators
-        ]
-
-        for pattern in code_indicators:
-            if re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
-                return True
-
-        # If content is mostly sentences with periods, probably not code
-        sentences = content.count('.')
-        words = len(content.split())
-        if words > 10 and sentences > 2:
-            return False
-
-        # If content has typical list formatting, probably not code
-        if re.search(r'^\s*[\*\-\+]\s+', content, re.MULTILINE):
-            return False
-
-        return False
+    def fix_relative_links(self, html_content, base_url="https://support.optisigns.com"):
+        """Convert relative URLs to absolute URLs"""
+        html_content = re.sub(r'href="(/[^"]*)"', f'href="{base_url}\\1"', html_content)
+        html_content = re.sub(r'src="(/[^"]*)"', f'src="{base_url}\\1"', html_content)
+        return html_content
 
     def html_to_markdown(self, html_content):
-        """Convert HTML to clean Markdown while preserving code blocks and headings"""
+        """Convert HTML to Markdown while preserving code blocks and headings"""
         processed_html = html_content
 
-        # Remove problematic CSS classes that might trigger code formatting
+        # Remove problematic CSS classes (but preserve code block classes)
         processed_html = re.sub(r'class="[^"]*wysiwyg-indent[^"]*"', '', processed_html)
 
-        # Handle HTML entities properly before conversion
+        # Handle HTML entities
         processed_html = html.unescape(processed_html)
 
-        # Remove empty paragraphs and extra whitespace
+        # Remove empty paragraphs
         processed_html = re.sub(r'<p>\s*</p>', '', processed_html)
         processed_html = re.sub(r'<p>\s*&nbsp;\s*</p>', '', processed_html)
 
-        # Configure html2text for clean output
+        # Configure html2text to preserve code blocks
         h = html2text.HTML2Text()
         h.ignore_links = False  # Preserve links
         h.ignore_images = False  # Keep images for now (will remove later)
-        h.ignore_emphasis = False  # Keep bold/italic formatting
+        h.ignore_emphasis = False  # Keep bold/italic
         h.body_width = 0  # Don't wrap lines
         h.unicode_snob = True
-        h.escape_snob = False  # Don't escape special characters
+        h.escape_snob = False
         h.use_automatic_links = True
-        h.ignore_tables = False  # Preserve tables
-        h.single_line_break = True  # Use single line breaks
-        h.default_image_alt = ""  # Don't add default alt text
+        h.ignore_tables = False
+        h.single_line_break = True
+        h.default_image_alt = ""
+        # CRITICAL: Don't ignore code blocks
+        h.bypass_tables = False
+        h.ignore_div = False
 
         markdown = h.handle(processed_html)
 
-        # Remove excessive blank lines
+        # Clean up excessive blank lines
         markdown = re.sub(r'\n{3,}', '\n\n', markdown)
 
-        # Fix escaped characters that shouldn't be escaped
+        # Fix escaped characters
         markdown = re.sub(r'\\([&.])', r'\1', markdown)
 
-        # Fix any remaining code block issues using intelligent detection
-        lines = markdown.split('\n')
-        cleaned_lines = []
-        in_code_block = False
-        code_block_content = []
+        # DON'T run the code block intelligence here - trust html2text for code blocks
+        # The issue was that is_likely_code was removing legitimate code blocks
 
-        for line in lines:
-            if line.strip() == '```' or line.startswith('```'):
-                if in_code_block:
-                    # End of code block - check if it contains actual code
-                    content = '\n'.join(code_block_content)
-                    if self.is_likely_code(content):
-                        # Keep as code block
-                        cleaned_lines.extend(['```'] + code_block_content + ['```'])
-                    else:
-                        # Convert back to regular text (was false positive)
-                        cleaned_lines.extend(code_block_content)
-                    code_block_content = []
-                    in_code_block = False
-                else:
-                    # Start of code block
-                    in_code_block = True
-            elif in_code_block:
-                code_block_content.append(line)
-            else:
-                cleaned_lines.append(line)
-
-        return '\n'.join(cleaned_lines)
+        return markdown
 
     def remove_images(self, markdown_content):
-        """Remove all image references ![alt](url) - images are useless for text-based AI"""
+        """Remove all image references"""
         markdown_content = re.sub(r'!\[([^\]]*)\]\([^)]*\)', '', markdown_content)
         return markdown_content
 
     def remove_promotional_content(self, markdown_content):
-        """Remove 'That's all!' sections, company promotion and generic contact info"""
+        """Remove promotional sections"""
         patterns_to_remove = [
             r'### That\'s all!.*?support@optisigns\.com.*?\)',
             r'OptiSigns is the leader in.*?support@optisigns\.com.*?\)',
@@ -221,22 +191,33 @@ class ZendeskScraper:
         return markdown_content
 
     def remove_navigation_elements(self, markdown_content):
-        """Remove table of contents bullet lists at document start - AI doesn't need structural navigation aids"""
+        """Remove table of contents"""
         lines = markdown_content.split('\n')
         cleaned_lines = []
         in_early_section = True
         bullet_list_count = 0
+        in_code_block = False
 
         for i, line in enumerate(lines):
-            # Stop considering TOC removal after we've seen substantial content
+            # Track if we're in a code block
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                cleaned_lines.append(line)
+                continue
+
+            # Don't process lines inside code blocks
+            if in_code_block:
+                cleaned_lines.append(line)
+                continue
+
+            # Stop considering TOC removal after substantial content
             if in_early_section and i > 20:
                 in_early_section = False
 
-            # If we're in early section and see bullet points, count them
+            # Count bullet lists in early section
             if in_early_section and re.match(r'^\s*[\*\-\+]\s+', line.strip()):
                 bullet_list_count += 1
-                # Skip long bullet lists at the beginning (likely TOCs)
-                if bullet_list_count > 8:  # Skip if more than 8 bullets (likely TOC)
+                if bullet_list_count > 8:  # Skip long TOCs
                     continue
             else:
                 bullet_list_count = 0
@@ -246,28 +227,42 @@ class ZendeskScraper:
         return '\n'.join(cleaned_lines)
 
     def remove_decorative_separators(self, markdown_content):
-        """Clean up * * *, ---, and excessive formatting. Simplify NOTE blocks"""
-        separators_to_remove = [
-            r'\n\s*\*\s*\*\s*\*\s*\n',  # * * *
-            r'\n\s*-{3,}\s*\n',         # --- (3 or more dashes)
-            r'\n\s*={3,}\s*\n',         # === (3 or more equals)
-            r'\*{4,}',                   # **** (4 or more asterisks)
-        ]
+        """Remove decorative separators while preserving code blocks"""
+        lines = markdown_content.split('\n')
+        cleaned_lines = []
+        in_code_block = False
 
-        for pattern in separators_to_remove:
-            markdown_content = re.sub(pattern, '\n\n', markdown_content)
+        for line in lines:
+            # Track code blocks
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                cleaned_lines.append(line)
+                continue
 
-        # Clean up NOTE blocks with excessive formatting to simple **NOTE:**
-        markdown_content = re.sub(r'\*\*NOTE\*\*\s*\n\s*---\s*\n', '**NOTE:** ', markdown_content)
+            # Don't process lines inside code blocks
+            if in_code_block:
+                cleaned_lines.append(line)
+                continue
 
-        return markdown_content
+            # Remove decorative separators (only outside code blocks)
+            if re.match(r'^\s*[\*\-=]{3,}\s*$', line):
+                # Skip this line
+                continue
+
+            cleaned_lines.append(line)
+
+        # Clean up NOTE blocks
+        content = '\n'.join(cleaned_lines)
+        content = re.sub(r'\*\*NOTE\*\*\s*\n\s*---\s*\n', '**NOTE:** ', content)
+
+        return content
 
     def remove_file_references(self, markdown_content):
-        """Remove technical screenshot filenames and firefox_xyz.jpg type references"""
+        """Remove technical file references"""
         file_patterns = [
-            r'!\[[^]]*firefox_[^]]*\]\([^)]*\)',  # Firefox screenshot references
-            r'!\[[^]]*\.(jpg|png|gif|jpeg)\]\([^)]*\)',  # Image file references with extensions
-            r'\[[\w\d_]+\.(jpg|png|gif|jpeg)\]',  # File name references in brackets
+            r'!\[[^]]*firefox_[^]]*\]\([^)]*\)',
+            r'!\[[^]]*\.(jpg|png|gif|jpeg)\]\([^)]*\)',
+            r'\[[\w\d_]+\.(jpg|png|gif|jpeg)\]',
         ]
 
         for pattern in file_patterns:
@@ -276,20 +271,39 @@ class ZendeskScraper:
         return markdown_content
 
     def remove_excessive_whitespace(self, markdown_content):
-        """Clean up spacing and formatting. Limit to max 3 consecutive line breaks"""
-        # Remove excessive blank lines (max 3 line breaks)
-        markdown_content = re.sub(r'\n{4,}', '\n\n\n', markdown_content)
+        """Clean up spacing while preserving code block formatting"""
+        lines = markdown_content.split('\n')
+        cleaned_lines = []
+        in_code_block = False
+        blank_line_count = 0
 
-        # Remove trailing spaces at end of lines
-        markdown_content = re.sub(r'[ \t]+\n', '\n', markdown_content)
+        for line in lines:
+            # Track code blocks
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                cleaned_lines.append(line)
+                blank_line_count = 0
+                continue
 
-        # Remove leading spaces on lines (except for code indentation)
-        markdown_content = re.sub(r'\n[ \t]+', '\n', markdown_content)
+            # Inside code blocks, preserve all formatting
+            if in_code_block:
+                cleaned_lines.append(line)
+                continue
 
-        return markdown_content.strip()
+            # Outside code blocks, manage whitespace
+            if line.strip() == '':
+                blank_line_count += 1
+                if blank_line_count <= 2:  # Max 2 consecutive blank lines
+                    cleaned_lines.append(line)
+            else:
+                blank_line_count = 0
+                # Remove trailing spaces from non-code lines
+                cleaned_lines.append(line.rstrip())
+
+        return '\n'.join(cleaned_lines).strip()
 
     def create_clean_metadata_header(self, article_data):
-        """Create minimal metadata header with only Article ID and URL for citations"""
+        """Create minimal metadata header"""
         title = article_data['title']
         article_id = article_data['id']
         url = article_data.get('html_url', 'Unknown')
@@ -304,8 +318,7 @@ class ZendeskScraper:
 """
 
     def clean_markdown_for_chatbot(self, markdown_content):
-        """Master function that applies all cleaning steps for chatbot optimization"""
-        # Apply all cleaning functions in the optimal sequence
+        """Master cleaning function that preserves code blocks"""
         markdown_content = self.remove_images(markdown_content)
         markdown_content = self.remove_promotional_content(markdown_content)
         markdown_content = self.remove_navigation_elements(markdown_content)
@@ -316,29 +329,28 @@ class ZendeskScraper:
         return markdown_content
 
     def process_article_to_markdown(self, article_data):
-        """Complete processing pipeline: HTML → Clean HTML → Markdown → Chatbot-optimized Markdown"""
-        # Extract HTML content
+        """Complete processing pipeline"""
         html_content = article_data['body']
 
-        # Step 1: Clean HTML (remove nav/ads, fix HTML issues)
+        # Step 1: Clean HTML while preserving code blocks
         cleaned_html = self.clean_html_content(html_content)
 
-        # Step 2: Fix relative links to absolute URLs
+        # Step 2: Fix relative links
         fixed_html = self.fix_relative_links(cleaned_html)
 
-        # Step 3: Convert HTML to Markdown (preserves headings and code blocks)
+        # Step 3: Convert to Markdown (preserves code blocks and headings)
         markdown_content = self.html_to_markdown(fixed_html)
 
-        # Step 4: Apply chatbot-specific optimizations
+        # Step 4: Apply chatbot optimizations while preserving code blocks
         cleaned_markdown = self.clean_markdown_for_chatbot(markdown_content)
 
-        # Step 5: Add clean metadata header for citations
+        # Step 5: Add metadata header
         metadata = self.create_clean_metadata_header(article_data)
 
         return metadata + cleaned_markdown
 
     def create_slug(self, title):
-        """Create a clean filename slug from article title"""
+        """Create filename slug"""
         slug = re.sub(r'[^\w\s-]', '', title.lower())
         slug = re.sub(r'[-\s]+', '-', slug)
         return slug.strip('-')
@@ -350,10 +362,10 @@ class ZendeskScraper:
         title = article_data['title']
         article_id = article_data['id']
 
-        # Process article through complete pipeline
+        # Process through complete pipeline
         markdown_content = self.process_article_to_markdown(article_data)
 
-        # Create filename with article ID to ensure uniqueness
+        # Create unique filename
         slug = self.create_slug(title)
         filename = f"{slug}-{article_id}.md"
         filepath = os.path.join(self.output_dir, filename)
@@ -364,10 +376,9 @@ class ZendeskScraper:
         return filepath
 
     def scrape_all_articles(self, max_articles=40):
-        """Main scraping function - orchestrates the complete scraping process"""
+        """Main scraping orchestrator"""
         logger.info("=== Starting Zendesk Article Scraping ===")
 
-        # Fetch list of articles
         articles_list = self.fetch_articles_list(max_articles)
 
         if not articles_list:
@@ -387,7 +398,6 @@ class ZendeskScraper:
             logger.info(f"\n[{i}/{len(articles_list)}] Processing: {article_title}")
             logger.info(f"    Article ID: {article_id}")
 
-            # Fetch full article data
             article_data = self.fetch_article_content(article_id)
 
             if not article_data:
@@ -400,7 +410,6 @@ class ZendeskScraper:
                 continue
 
             try:
-                # Save as markdown using complete processing pipeline
                 saved_file = self.save_article_as_markdown(article_data)
                 successful_articles.append({
                     'id': article_id,
@@ -418,11 +427,11 @@ class ZendeskScraper:
                 })
                 logger.error(f"    Error saving article: {e}")
 
-            # Rate limiting - wait 1 second between requests to be respectful
+            # Rate limiting
             if i < len(articles_list):
                 time.sleep(1)
 
-        # Print comprehensive summary
+        # Summary
         logger.info("\n" + "=" * 50)
         logger.info("SCRAPING SUMMARY")
         logger.info("=" * 50)
@@ -442,7 +451,7 @@ class ZendeskScraper:
         return successful_articles
 
 def main():
-    """Main entry point when script is run standalone"""
+    """Main entry point"""
     scraper = ZendeskScraper()
     articles = scraper.scrape_all_articles(max_articles=40)
     logger.info(f"Scraping complete. {len(articles)} articles processed.")
