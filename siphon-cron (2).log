@@ -1,0 +1,60 @@
+2025-07-24 03:45:59,430 - INFO - Logging initialized - log file: ./logs/batch_run_20250724_034559.log
+2025-07-24 03:45:59,430 - INFO - ============================================================
+2025-07-24 03:45:59,430 - INFO - OPTIBOT DAILY SYNC STARTING
+2025-07-24 03:45:59,430 - INFO - ============================================================
+2025-07-24 03:45:59,430 - INFO - Start time: 2025-07-24T03:45:59.430670
+2025-07-24 03:45:59,430 - INFO - Environment validation passed
+2025-07-24 03:45:59,431 - INFO - Using OpenAI API key: sk-...c_YA
+2025-07-24 03:45:59,431 - INFO - Initializing batch runner...
+2025-07-24 03:45:59,431 - INFO - Starting delta sync...
+2025-07-24 03:45:59,431 - INFO - === OptiBot Delta Sync Started ===
+2025-07-24 03:45:59,431 - INFO - Last successful run: 2025-07-24T03:36:24.554949
+2025-07-24 03:45:59,431 - INFO - Step 1: Fetching articles from Zendesk...
+2025-07-24 03:45:59,431 - INFO - Fetching articles list from Zendesk...
+2025-07-24 03:45:59,431 - INFO -   Fetching page 1...
+2025-07-24 03:46:00,011 - INFO -   Got 30 articles from page 1
+2025-07-24 03:46:00,012 - INFO -   Fetching page 2...
+2025-07-24 03:46:00,542 - INFO -   Got 30 articles from page 2
+2025-07-24 03:46:00,542 - INFO - Selected 40 articles to process
+2025-07-24 03:46:00,543 - INFO - Step 2: Detecting changes...
+2025-07-24 03:46:00,543 - INFO - === Detecting Article Changes ===
+2025-07-24 03:46:00,543 - INFO - Change detection results:
+2025-07-24 03:46:00,543 - INFO -   New: 0 articles
+2025-07-24 03:46:00,543 - INFO -   Updated: 0 articles
+2025-07-24 03:46:00,543 - INFO -   Deleted: 0 articles
+2025-07-24 03:46:00,544 - INFO -   Unchanged: 40 articles
+2025-07-24 03:46:00,544 - INFO - No changes detected - sync completed successfully
+2025-07-24 03:46:00,544 - INFO - ============================================================
+2025-07-24 03:46:00,544 - INFO - OPTIBOT DAILY SYNC COMPLETED SUCCESSFULLY
+2025-07-24 03:46:00,545 - INFO - End time: 2025-07-24T03:46:00.544791
+2025-07-24 03:46:00,545 - INFO - Container exiting with code 0
+2025-07-24 04:15:03,377 - INFO - Logging initialized - log file: ./logs/batch_run_20250724_041503.log
+2025-07-24 04:15:03,381 - INFO - ============================================================
+2025-07-24 04:15:03,381 - INFO - OPTIBOT DAILY SYNC STARTING
+2025-07-24 04:15:03,381 - INFO - ============================================================
+2025-07-24 04:15:03,381 - INFO - Start time: 2025-07-24T04:15:03.381536
+2025-07-24 04:15:03,381 - INFO - Environment validation passed
+2025-07-24 04:15:03,381 - INFO - Using OpenAI API key: sk-...c_YA
+2025-07-24 04:15:03,381 - INFO - Initializing batch runner...
+2025-07-24 04:15:03,385 - INFO - Starting delta sync...
+2025-07-24 04:15:03,385 - INFO - === OptiBot Delta Sync Started ===
+2025-07-24 04:15:03,385 - INFO - Last successful run: 2025-07-24T03:36:24.554949
+2025-07-24 04:15:03,385 - INFO - Step 1: Fetching articles from Zendesk...
+2025-07-24 04:15:03,385 - INFO - Fetching articles list from Zendesk...
+2025-07-24 04:15:03,385 - INFO -   Fetching page 1...
+2025-07-24 04:15:04,024 - INFO -   Got 30 articles from page 1
+2025-07-24 04:15:04,024 - INFO -   Fetching page 2...
+2025-07-24 04:15:04,557 - INFO -   Got 30 articles from page 2
+2025-07-24 04:15:04,557 - INFO - Selected 40 articles to process
+2025-07-24 04:15:04,558 - INFO - Step 2: Detecting changes...
+2025-07-24 04:15:04,558 - INFO - === Detecting Article Changes ===
+2025-07-24 04:15:04,558 - INFO - Change detection results:
+2025-07-24 04:15:04,558 - INFO -   New: 0 articles
+2025-07-24 04:15:04,559 - INFO -   Updated: 0 articles
+2025-07-24 04:15:04,559 - INFO -   Deleted: 0 articles
+2025-07-24 04:15:04,560 - INFO -   Unchanged: 40 articles
+2025-07-24 04:15:04,560 - INFO - No changes detected - sync completed successfully
+2025-07-24 04:15:04,560 - INFO - ============================================================
+2025-07-24 04:15:04,560 - INFO - OPTIBOT DAILY SYNC COMPLETED SUCCESSFULLY
+2025-07-24 04:15:04,560 - INFO - End time: 2025-07-24T04:15:04.560792
+2025-07-24 04:15:04,560 - INFO - Container exiting with code 0
