@@ -15,18 +15,33 @@ logger = logging.getLogger(__name__)
 
 class BatchRunner:
     def __init__(self):
-        self.last_run_file = "./last_run.txt"
-        self.file_mapping_file = "./file_mapping.json"
-        self.articles_dir = "./articles"
+        # Use persistent storage path if available
+        state_dir = os.getenv('SIPHON_STATE_DIR', '.')
 
-        # Initialize modules
-        self.scraper = ZendeskScraper()
-        self.uploader = VectorStoreUploader()
+        self.last_run_file = os.path.join(state_dir, "last_run.txt")
+        self.file_mapping_file = os.path.join(state_dir, "file_mapping.json")
+        self.articles_dir = os.path.join(state_dir, "articles")
+
+        # Ensure directories exist
+        os.makedirs(os.path.dirname(self.last_run_file), exist_ok=True)
+        os.makedirs(self.articles_dir, exist_ok=True)
+
+        # Initialize modules with persistent paths
+        self.scraper = ZendeskScraper(output_dir=self.articles_dir)
+        self.uploader = VectorStoreUploader(articles_dir=self.articles_dir)
+
+        # Update uploader's vector store info file path
+        self.uploader.vector_store_info_file = os.path.join(state_dir, "vector_store_info.json")
 
         # Load persistent state
         self.last_run_timestamp = self.load_last_run_timestamp()
         self.file_mapping = self.load_file_mapping()
         self.vector_store_id = self.load_vector_store_id()
+
+        logger.info(f"BatchRunner initialized with state directory: {state_dir}")
+        logger.info(f"  Last run file: {self.last_run_file}")
+        logger.info(f"  File mapping: {self.file_mapping_file}")
+        logger.info(f"  Articles directory: {self.articles_dir}")
 
     def load_last_run_timestamp(self):
         """Load the timestamp of the last successful run"""

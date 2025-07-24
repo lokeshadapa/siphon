@@ -1,0 +1,53 @@
+# DigitalOcean App Platform Specification
+name: optibot-siphon
+region: nyc
+
+# Jobs run on schedule, not continuously
+jobs:
+  - name: daily-sync-job
+    # Source configuration
+    source_dir: /
+    github:
+      repo: your-username/your-repo-name  # Replace with your actual repo
+      branch: main
+      deploy_on_push: true
+
+    # Environment configuration
+    environment_slug: python
+    dockerfile_path: Dockerfile
+
+    # Job scheduling - runs once per day
+    kind: CRON
+    schedule: "0 2 * * *"  # Daily at 2 AM UTC (adjust timezone as needed)
+
+    # Resource allocation
+    instance_count: 1
+    instance_size_slug: basic-xxs  # Smallest instance for cost efficiency
+
+    # Environment variables
+    envs:
+      - key: OPENAI_API_KEY
+        value: YOUR_OPENAI_API_KEY_HERE  # Replace with actual key
+        type: SECRET  # Keeps it secure
+      - key: PYTHONUNBUFFERED
+        value: "1"
+        type: GENERAL
+
+    # Health check (optional)
+    health_check:
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+
+# Persistent storage for state files
+volumes:
+  - name: siphon-state
+    size: 1GB
+    region: nyc
+
+# Mount the volume to preserve state
+mounts:
+  - volume: siphon-state
+    path: /app/state
