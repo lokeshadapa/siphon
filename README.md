@@ -30,6 +30,8 @@ docker run -e OPENAI_API_KEY="your-api-key" -v $(pwd)/data:/code/data siphon
 
 ### Without Docker
 ```bash
+# Install required packages
+pip install -r requirements.txt
 python main.py
 ```
 
