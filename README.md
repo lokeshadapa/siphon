@@ -1,12 +1,50 @@
-# siphon
-# OpenAI Model Testing Results
+# Siphon
 
-## Model Comparison for OptiBot Implementation
+## Setup
 
-| Model | Citation Behavior | Content Quality | Response Time | Key Notes |
-|-------|------------------|----------------|---------------|-----------|
-| **GPT-4.1** | ❌ Hallucinated URLs | Low (brief content) | Fast | Fails core requirement |
-| **GPT-4.1 Mini** | ✅ Actual URLs | Medium (4/5 bullets, 1 null) | Fastest | Speed champion, some gaps |
-| **GPT-4o** | ✅ Actual URLs | Good(all 5 points) | Slowest | Best quality, worst speed |
-| **GPT-4o Mini** | ✅ Actual URLs | Good (all 5 points) | Medium | Best balance overall |
+### Prerequisites
+```bash
+- Docker
+- Your OpenAI API key
+```
+
+### Installation
+```bash
+git clone https://github.com/lokeshadapa/siphon.git
+cd siphon
+docker build -t siphon .
+```
+
+## How to Run Locally
+
+### Quick Start
+```bash
+docker run -e OPENAI_API_KEY="your-api-key" siphon
+```
+
+### With Data Persistence
+```bash
+mkdir -p ./data
+docker run -e OPENAI_API_KEY="your-api-key" -v $(pwd)/data:/code/data siphon
+```
+
+### Without Docker
+```bash
+python main.py
+```
+
+## Link to Daily Job Logs
+**Logs**: https://github.com/lokeshadapa/siphon/blob/main/siphon-cron%20(2).log 
+
+**Live Logs**: http://128.199.14.76:8080/siphon-cron.log (when server is running)
+
+- **Schedule**: Daily at 5:15 AM UTC
+- **Server**: DigitalOcean Droplet (128.199.14.76)
+
+## Screen Shots
+- https://github.com/lokeshadapa/siphon/tree/main/screenshots-gpt-4o-mini
+
+## GPT Model Analysis
+- 
+---
 
