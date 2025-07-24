@@ -7,18 +7,9 @@ from datetime import datetime
 from batch_runner import BatchRunner
 
 def setup_logging():
-    """Setup logging to both console and file with persistent storage"""
-    # Use persistent volume path if available, otherwise local
-    if os.path.exists('/app/state'):
-        # DigitalOcean persistent volume
-        log_dir = "/app/state/logs"
-        state_dir = "/app/state"
-    else:
-        # Local development
-        log_dir = "./logs"
-        state_dir = "."
-
+    """Setup logging to both console and file"""
     # Create logs directory if it doesn't exist
+    log_dir = "./logs"
     os.makedirs(log_dir, exist_ok=True)
 
     # Create log filename with timestamp
@@ -33,7 +24,7 @@ def setup_logging():
         level=logging.INFO,
         format=log_format,
         handlers=[
-            # Console handler (for DigitalOcean logs)
+            # Console handler (for Docker logs)
             logging.StreamHandler(sys.stdout),
             # File handler (for persistent logs)
             logging.FileHandler(log_file, encoding='utf-8')
@@ -42,11 +33,6 @@ def setup_logging():
 
     logger = logging.getLogger(__name__)
     logger.info(f"Logging initialized - log file: {log_file}")
-    logger.info(f"State directory: {state_dir}")
-
-    # Set environment variable for BatchRunner to use persistent paths
-    os.environ['SIPHON_STATE_DIR'] = state_dir
-
     return logger
 
 def validate_environment():
@@ -78,7 +64,6 @@ def main():
     logger.info("OPTIBOT DAILY SYNC STARTING")
     logger.info("=" * 60)
     logger.info(f"Start time: {datetime.now().isoformat()}")
-    logger.info(f"Running on: DigitalOcean" if os.path.exists('/app/state') else "Local environment")
 
     try:
         # Validate environment
@@ -96,23 +81,12 @@ def main():
 
         # Log final result
         end_time = datetime.now()
-        duration = end_time - datetime.fromisoformat(logger.handlers[1].baseFilename.split('_')[2].split('.')[0] + 'T' + logger.handlers[1].baseFilename.split('_')[3].split('.')[0])
-
         logger.info("=" * 60)
 
         if success:
             logger.info("OPTIBOT DAILY SYNC COMPLETED SUCCESSFULLY")
             logger.info(f"End time: {end_time.isoformat()}")
             logger.info("Container exiting with code 0")
-
-            # Log persistent file locations for reference
-            if os.path.exists('/app/state'):
-                logger.info("Persistent files saved to:")
-                logger.info("  - State: /app/state/file_mapping.json")
-                logger.info("  - Timestamp: /app/state/last_run.txt")
-                logger.info("  - Articles: /app/state/articles/")
-                logger.info("  - Logs: /app/state/logs/")
-
             sys.exit(0)
         else:
             logger.error("OPTIBOT DAILY SYNC FAILED")
