@@ -1,8 +1,8 @@
 # Use Python 3.11 slim image for smaller size
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
+# Set working directory to /code instead of /app
+WORKDIR /code
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -21,11 +21,11 @@ COPY batch_runner.py .
 COPY scraper.py .
 COPY uploader.py .
 
-# Create directories for persistent data
-RUN mkdir -p /app/articles /app/logs
+# Create directories for data (will be mounted from host)
+RUN mkdir -p /code/data
 
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/code
 ENV PYTHONUNBUFFERED=1
 
 # Make main.py executable

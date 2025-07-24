@@ -15,13 +15,29 @@ logger = logging.getLogger(__name__)
 
 class BatchRunner:
     def __init__(self):
-        self.last_run_file = "./last_run.txt"
-        self.file_mapping_file = "./file_mapping.json"
-        self.articles_dir = "./articles"
+        # Use /code/data for persistent files when in Docker, otherwise local
+        if os.path.exists('/code/data'):
+            # Docker environment with mounted volume
+            data_dir = '/code/data'
+        else:
+            # Local development environment
+            data_dir = '.'
+
+        self.last_run_file = os.path.join(data_dir, "last_run.txt")
+        self.file_mapping_file = os.path.join(data_dir, "file_mapping.json")
+        self.articles_dir = os.path.join(data_dir, "articles")
+
+        # Ensure directories exist
+        os.makedirs(self.articles_dir, exist_ok=True)
+        os.makedirs(os.path.join(data_dir, "logs"), exist_ok=True)
 
         # Initialize modules
         self.scraper = ZendeskScraper()
         self.uploader = VectorStoreUploader()
+
+        # Update uploader's info file path for Docker
+        if os.path.exists('/code/data'):
+            self.uploader.vector_store_info_file = os.path.join(data_dir, "vector_store_info.json")
 
         # Load persistent state
         self.last_run_timestamp = self.load_last_run_timestamp()
