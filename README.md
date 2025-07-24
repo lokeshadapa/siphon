@@ -44,7 +44,7 @@ python main.py
 ## Screen Shots
 - https://github.com/lokeshadapa/siphon/tree/main/screenshots-gpt-4o-mini
 
-## GPT Model Analysis
-- 
+## GPT Model Comparison
+- https://github.com/lokeshadapa/siphon/blob/main/model%20comparison.md
 ---
 
