@@ -34,9 +34,7 @@ python main.py
 ```
 
 ## Link to Daily Job Logs
-**Logs**: https://github.com/lokeshadapa/siphon/blob/main/siphon-cron%20(2).log 
-
-**Live Logs**: http://128.199.14.76:8080/siphon-cron.log (when server is running)
+**Live Logs**: http://128.199.14.76:8080/siphon-cron.log
 
 - **Schedule**: Daily at 5:15 AM UTC
 - **Server**: DigitalOcean Droplet (128.199.14.76)
